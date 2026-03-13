@@ -1,0 +1,184 @@
+import Database from "better-sqlite3";
+import path from "path";
+import { seedDatabase } from "./seed";
+
+const DATA_DIR = process.env.DATA_DIR || process.cwd();
+const DB_PATH = path.join(DATA_DIR, "crash-log.db");
+
+let db: Database.Database | null = null;
+
+export function getDb(): Database.Database {
+  if (!db) {
+    db = new Database(DB_PATH);
+    db.pragma("journal_mode = WAL");
+    db.pragma("foreign_keys = ON");
+    initSchema(db);
+    if (process.env.NODE_ENV !== "production") {
+      seedDatabase(db);
+    }
+  }
+  return db;
+}
+
+function initSchema(db: Database.Database) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS crashes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      lat REAL NOT NULL,
+      lng REAL NOT NULL,
+      location_description TEXT,
+      description TEXT NOT NULL,
+      severity TEXT NOT NULL CHECK(severity IN ('minor', 'moderate', 'severe')),
+      crash_type TEXT NOT NULL CHECK(crash_type IN ('vehicle', 'road_hazard', 'dooring', 'solo', 'pedestrian', 'bicycle', 'ebike', 'other')),
+      date_of_crash DATE NOT NULL,
+      reported_to_police INTEGER DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS crash_photos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      crash_id INTEGER NOT NULL REFERENCES crashes(id) ON DELETE CASCADE,
+      filename TEXT NOT NULL,
+      label TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+}
+
+export interface CrashPhoto {
+  id: number;
+  crash_id: number;
+  filename: string;
+  label: string | null;
+  created_at: string;
+}
+
+export interface Crash {
+  id: number;
+  created_at: string;
+  lat: number;
+  lng: number;
+  location_description: string | null;
+  description: string;
+  severity: "minor" | "moderate" | "severe";
+  crash_type: "vehicle" | "road_hazard" | "dooring" | "solo" | "pedestrian" | "bicycle" | "ebike" | "other";
+  date_of_crash: string;
+  reported_to_police: number;
+  photos?: CrashPhoto[];
+}
+
+export function getAllCrashes(filters?: {
+  severity?: string;
+  crash_type?: string;
+  date_from?: string;
+  date_to?: string;
+}): Crash[] {
+  const db = getDb();
+  const conditions: string[] = [];
+  const params: Record<string, string> = {};
+
+  if (filters?.severity) {
+    conditions.push("severity = @severity");
+    params.severity = filters.severity;
+  }
+  if (filters?.crash_type) {
+    conditions.push("crash_type = @crash_type");
+    params.crash_type = filters.crash_type;
+  }
+  if (filters?.date_from) {
+    conditions.push("date_of_crash >= @date_from");
+    params.date_from = filters.date_from;
+  }
+  if (filters?.date_to) {
+    conditions.push("date_of_crash <= @date_to");
+    params.date_to = filters.date_to;
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const crashes = db.prepare(`SELECT * FROM crashes ${where} ORDER BY date_of_crash DESC`).all(params) as Crash[];
+
+  // Attach photos to each crash
+  const photoStmt = db.prepare("SELECT * FROM crash_photos WHERE crash_id = ? ORDER BY id");
+  for (const crash of crashes) {
+    crash.photos = photoStmt.all(crash.id) as CrashPhoto[];
+  }
+
+  return crashes;
+}
+
+export function insertCrash(data: {
+  lat: number;
+  lng: number;
+  location_description?: string;
+  description: string;
+  severity: string;
+  crash_type: string;
+  date_of_crash: string;
+  reported_to_police?: boolean;
+}): Crash {
+  const db = getDb();
+  const stmt = db.prepare(`
+    INSERT INTO crashes (lat, lng, location_description, description, severity, crash_type, date_of_crash, reported_to_police)
+    VALUES (@lat, @lng, @location_description, @description, @severity, @crash_type, @date_of_crash, @reported_to_police)
+  `);
+  const result = stmt.run({
+    lat: data.lat,
+    lng: data.lng,
+    location_description: data.location_description || null,
+    description: data.description,
+    severity: data.severity,
+    crash_type: data.crash_type,
+    date_of_crash: data.date_of_crash,
+    reported_to_police: data.reported_to_police ? 1 : 0,
+  });
+  return db.prepare("SELECT * FROM crashes WHERE id = ?").get(result.lastInsertRowid) as Crash;
+}
+
+export function getStats() {
+  const db = getDb();
+
+  const byMonth = db.prepare(`
+    SELECT strftime('%Y-%m', date_of_crash) as month, COUNT(*) as count
+    FROM crashes GROUP BY month ORDER BY month
+  `).all() as { month: string; count: number }[];
+
+  const byType = db.prepare(`
+    SELECT crash_type, COUNT(*) as count
+    FROM crashes GROUP BY crash_type ORDER BY count DESC
+  `).all() as { crash_type: string; count: number }[];
+
+  const bySeverity = db.prepare(`
+    SELECT severity, COUNT(*) as count
+    FROM crashes GROUP BY severity ORDER BY count DESC
+  `).all() as { severity: string; count: number }[];
+
+  const total = db.prepare("SELECT COUNT(*) as count FROM crashes").get() as { count: number };
+
+  const reportedRate = db.prepare(`
+    SELECT
+      SUM(CASE WHEN reported_to_police = 1 THEN 1 ELSE 0 END) as reported,
+      COUNT(*) as total
+    FROM crashes
+  `).get() as { reported: number; total: number };
+
+  return { byMonth, byType, bySeverity, total: total.count, reportedRate };
+}
+
+export function insertPhoto(crashId: number, filename: string, label?: string): CrashPhoto {
+  const db = getDb();
+  const stmt = db.prepare(`
+    INSERT INTO crash_photos (crash_id, filename, label)
+    VALUES (@crash_id, @filename, @label)
+  `);
+  const result = stmt.run({
+    crash_id: crashId,
+    filename,
+    label: label || null,
+  });
+  return db.prepare("SELECT * FROM crash_photos WHERE id = ?").get(result.lastInsertRowid) as CrashPhoto;
+}
+
+export function getPhotoCount(crashId: number): number {
+  const db = getDb();
+  return (db.prepare("SELECT COUNT(*) as count FROM crash_photos WHERE crash_id = ?").get(crashId) as { count: number }).count;
+}
