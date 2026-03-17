@@ -4,9 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const links = [
-  { href: "/", label: "MAP" },
-  { href: "/report", label: "REPORT" },
-  { href: "/stats", label: "STATS" },
+  { href: "/", label: "RIDES" },
+  { href: "/commute/new", label: "LOG" },
+  { href: "/commute", label: "STATS" },
+  { href: "/map", label: "CRASH" },
 ];
 
 export default function Nav() {
@@ -16,7 +17,7 @@ export default function Nav() {
     <nav className="fixed top-0 left-0 right-0 z-[1000] bg-background border-b border-border">
       <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 group">
-          <span className="text-mta-yellow text-xl font-bold tracking-tighter">CRASH LOG</span>
+          <span className="text-mta-yellow text-xl font-bold tracking-tighter">CRANKY COMMUTER</span>
         </Link>
 
         <div className="flex items-center gap-1">

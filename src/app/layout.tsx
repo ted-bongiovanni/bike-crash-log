@@ -1,16 +1,10 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import Nav from "@/components/Nav";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "CRASH LOG",
-  description: "Log unreported bike crashes. See the patterns. Make streets safer.",
+  title: "CRANKY COMMUTER",
+  description: "Daily bike commute tracker. Score the vibes. File your grievances. Log crashes when they happen.",
 };
 
 export default function RootLayout({
@@ -20,7 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} antialiased font-sans`}>
+      <body className="antialiased font-sans">
         <Nav />
         <main className="pt-14">
           {children}
