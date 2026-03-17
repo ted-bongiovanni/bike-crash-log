@@ -13,6 +13,7 @@ export function getDb(): Database.Database {
     db.pragma("journal_mode = WAL");
     db.pragma("foreign_keys = ON");
     initSchema(db);
+    runMigrations(db);
     if (process.env.NODE_ENV !== "production") {
       seedDatabase(db);
     }
@@ -59,6 +60,26 @@ function initSchema(db: Database.Database) {
       time_of_day TEXT CHECK(time_of_day IN ('am', 'pm'))
     );
   `);
+}
+
+function hasColumn(db: Database.Database, table: string, column: string): boolean {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  return cols.some((c) => c.name === column);
+}
+
+function runMigrations(db: Database.Database) {
+  if (!hasColumn(db, "commute_logs", "distance_estimate")) {
+    db.exec(`ALTER TABLE commute_logs ADD COLUMN distance_estimate TEXT CHECK(distance_estimate IN ('under_2', '2_to_5', '5_to_10', '10_to_15', '15_plus'))`);
+  }
+  if (!hasColumn(db, "commute_logs", "time_estimate")) {
+    db.exec(`ALTER TABLE commute_logs ADD COLUMN time_estimate TEXT CHECK(time_estimate IN ('under_15', '15_to_30', '30_to_45', '45_to_60', '60_plus'))`);
+  }
+  if (!hasColumn(db, "commute_logs", "rush_hour")) {
+    db.exec(`ALTER TABLE commute_logs ADD COLUMN rush_hour INTEGER DEFAULT 0`);
+  }
+  if (!hasColumn(db, "commute_logs", "time_of_day")) {
+    db.exec(`ALTER TABLE commute_logs ADD COLUMN time_of_day TEXT CHECK(time_of_day IN ('am', 'pm'))`);
+  }
 }
 
 export interface CrashPhoto {
