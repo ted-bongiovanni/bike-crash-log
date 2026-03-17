@@ -102,7 +102,7 @@ export default function CommuteForm() {
   const moodColor = total <= 8 ? "text-severity-severe" : total <= 12 ? "text-mta-orange" : total <= 16 ? "text-mta-yellow" : "text-mta-green";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
       {/* Date */}
       <div>
         <label className="text-xs font-bold tracking-widest text-muted uppercase block mb-2">
@@ -112,6 +112,7 @@ export default function CommuteForm() {
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
+          required
           className="w-full bg-surface border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-mta-yellow"
         />
       </div>
