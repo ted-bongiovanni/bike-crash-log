@@ -120,10 +120,11 @@ export default function CommuteForm() {
             DATE
           </label>
           <input
-            type="date"
+            type="text"
+            inputMode="numeric"
             value={date}
+            placeholder="YYYY-MM-DD"
             onChange={(e) => setDate(e.target.value)}
-            required
             className="w-full bg-surface border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-mta-yellow"
           />
         </div>
