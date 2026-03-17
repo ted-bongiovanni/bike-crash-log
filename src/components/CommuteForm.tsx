@@ -71,6 +71,10 @@ export default function CommuteForm() {
   const [soul, setSoul] = useState(3);
   const [joys, setJoys] = useState("");
   const [sorrows, setSorrows] = useState("");
+  const [distanceEstimate, setDistanceEstimate] = useState("");
+  const [timeEstimate, setTimeEstimate] = useState("");
+  const [rushHour, setRushHour] = useState(false);
+  const [timeOfDay, setTimeOfDay] = useState<"am" | "pm">(new Date().getHours() < 12 ? "am" : "pm");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -83,7 +87,13 @@ export default function CommuteForm() {
       const res = await fetch("/api/commutes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, weather, safety, legs, soul, joys, sorrows }),
+        body: JSON.stringify({
+          date, weather, safety, legs, soul, joys, sorrows,
+          distance_estimate: distanceEstimate || undefined,
+          time_estimate: timeEstimate || undefined,
+          rush_hour: rushHour,
+          time_of_day: timeOfDay,
+        }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -102,18 +112,50 @@ export default function CommuteForm() {
   const moodColor = total <= 8 ? "text-severity-severe" : total <= 12 ? "text-mta-orange" : total <= 16 ? "text-mta-yellow" : "text-mta-green";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Date */}
-      <div>
-        <label className="text-xs font-bold tracking-widest text-muted uppercase block mb-2">
-          DATE
-        </label>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="w-full bg-surface border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-mta-yellow"
-        />
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
+      {/* Date & AM/PM */}
+      <div className="flex gap-3">
+        <div className="flex-1">
+          <label className="text-xs font-bold tracking-widest text-muted uppercase block mb-2">
+            DATE
+          </label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+            className="w-full bg-surface border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-mta-yellow"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-bold tracking-widest text-muted uppercase block mb-2">
+            RIDE
+          </label>
+          <div className="flex rounded overflow-hidden border border-border">
+            <button
+              type="button"
+              onClick={() => setTimeOfDay("am")}
+              className={`px-4 py-2 text-sm font-bold tracking-widest transition-all ${
+                timeOfDay === "am"
+                  ? "bg-mta-yellow text-background"
+                  : "bg-surface text-muted hover:text-foreground"
+              }`}
+            >
+              AM
+            </button>
+            <button
+              type="button"
+              onClick={() => setTimeOfDay("pm")}
+              className={`px-4 py-2 text-sm font-bold tracking-widest transition-all ${
+                timeOfDay === "pm"
+                  ? "bg-mta-yellow text-background"
+                  : "bg-surface text-muted hover:text-foreground"
+              }`}
+            >
+              PM
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Scores */}
@@ -127,6 +169,77 @@ export default function CommuteForm() {
         <div className="text-[10px] tracking-widest text-muted uppercase mb-1">TODAY&apos;S VERDICT</div>
         <div className={`text-2xl font-bold font-mono ${moodColor}`}>{total}/20</div>
         <div className={`text-xs font-bold tracking-widest ${moodColor}`}>{mood}</div>
+      </div>
+
+      {/* Ride details */}
+      <div className="space-y-4">
+        <div>
+          <label className="text-xs font-bold tracking-widest text-muted uppercase block mb-2">
+            DISTANCE — <span className="text-mta-yellow">miles (estimate)</span>
+          </label>
+          <div className="flex gap-2">
+            {[
+              { value: "under_2", label: "<2" },
+              { value: "2_to_5", label: "2-5" },
+              { value: "5_to_10", label: "5-10" },
+              { value: "10_to_15", label: "10-15" },
+              { value: "15_plus", label: "15+" },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setDistanceEstimate(distanceEstimate === opt.value ? "" : opt.value)}
+                className={`flex-1 py-2 rounded text-xs font-bold tracking-wider transition-all ${
+                  distanceEstimate === opt.value
+                    ? "bg-mta-yellow text-background"
+                    : "bg-surface border border-border text-muted hover:border-mta-yellow/50"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs font-bold tracking-widest text-muted uppercase block mb-2">
+            DURATION — <span className="text-mta-yellow">minutes (estimate)</span>
+          </label>
+          <div className="flex gap-2">
+            {[
+              { value: "under_15", label: "<15" },
+              { value: "15_to_30", label: "15-30" },
+              { value: "30_to_45", label: "30-45" },
+              { value: "45_to_60", label: "45-60" },
+              { value: "60_plus", label: "60+" },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setTimeEstimate(timeEstimate === opt.value ? "" : opt.value)}
+                className={`flex-1 py-2 rounded text-xs font-bold tracking-wider transition-all ${
+                  timeEstimate === opt.value
+                    ? "bg-mta-yellow text-background"
+                    : "bg-surface border border-border text-muted hover:border-mta-yellow/50"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setRushHour(!rushHour)}
+          className={`w-full py-2 rounded text-xs font-bold tracking-widest uppercase transition-all ${
+            rushHour
+              ? "bg-severity-severe text-white"
+              : "bg-surface border border-border text-muted hover:border-severity-severe/50"
+          }`}
+        >
+          {rushHour ? "RUSH HOUR — YES" : "RUSH HOUR?"}
+        </button>
       </div>
 
       {/* Joys */}
@@ -151,7 +264,7 @@ export default function CommuteForm() {
         <textarea
           value={sorrows}
           onChange={(e) => setSorrows(e.target.value)}
-          placeholder="Headwind the entire way. Glass in the bike lane again. That one intersection..."
+          placeholder="Headwind the entire way. Glass in the bike lane again. Car parked in the bike lane on 2nd Ave. That one intersection..."
           rows={3}
           className="w-full bg-surface border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-severity-severe placeholder:text-muted/50 resize-none"
         />
