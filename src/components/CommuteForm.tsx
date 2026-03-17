@@ -89,8 +89,8 @@ export default function CommuteForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           date, weather, safety, legs, soul, joys, sorrows,
-          distance_estimate: distanceEstimate || undefined,
-          time_estimate: timeEstimate || undefined,
+          distance_miles: distanceEstimate ? parseFloat(distanceEstimate) : undefined,
+          duration_minutes: timeEstimate ? parseInt(timeEstimate, 10) : undefined,
           rush_hour: rushHour,
           time_of_day: timeOfDay,
         }),
@@ -172,59 +172,32 @@ export default function CommuteForm() {
 
       {/* Ride details */}
       <div className="space-y-4">
-        <div>
-          <label className="text-xs font-bold tracking-widest text-muted uppercase block mb-2">
-            DISTANCE — <span className="text-mta-yellow">miles (estimate)</span>
-          </label>
-          <div className="flex gap-2">
-            {[
-              { value: "under_2", label: "<2" },
-              { value: "2_to_5", label: "2-5" },
-              { value: "5_to_10", label: "5-10" },
-              { value: "10_to_15", label: "10-15" },
-              { value: "15_plus", label: "15+" },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setDistanceEstimate(distanceEstimate === opt.value ? "" : opt.value)}
-                className={`flex-1 py-2 rounded text-xs font-bold tracking-wider transition-all ${
-                  distanceEstimate === opt.value
-                    ? "bg-mta-yellow text-background"
-                    : "bg-surface border border-border text-muted hover:border-mta-yellow/50"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label className="text-xs font-bold tracking-widest text-muted uppercase block mb-2">
+              DISTANCE — <span className="text-mta-yellow">miles</span>
+            </label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={distanceEstimate}
+              onChange={(e) => setDistanceEstimate(e.target.value)}
+              placeholder="0.0"
+              className="w-full bg-surface border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-mta-yellow placeholder:text-muted/50"
+            />
           </div>
-        </div>
-
-        <div>
-          <label className="text-xs font-bold tracking-widest text-muted uppercase block mb-2">
-            DURATION — <span className="text-mta-yellow">minutes (estimate)</span>
-          </label>
-          <div className="flex gap-2">
-            {[
-              { value: "under_15", label: "<15" },
-              { value: "15_to_30", label: "15-30" },
-              { value: "30_to_45", label: "30-45" },
-              { value: "45_to_60", label: "45-60" },
-              { value: "60_plus", label: "60+" },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setTimeEstimate(timeEstimate === opt.value ? "" : opt.value)}
-                className={`flex-1 py-2 rounded text-xs font-bold tracking-wider transition-all ${
-                  timeEstimate === opt.value
-                    ? "bg-mta-yellow text-background"
-                    : "bg-surface border border-border text-muted hover:border-mta-yellow/50"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+          <div className="flex-1">
+            <label className="text-xs font-bold tracking-widest text-muted uppercase block mb-2">
+              DURATION — <span className="text-mta-yellow">minutes</span>
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={timeEstimate}
+              onChange={(e) => setTimeEstimate(e.target.value)}
+              placeholder="0"
+              className="w-full bg-surface border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-mta-yellow placeholder:text-muted/50"
+            />
           </div>
         </div>
 

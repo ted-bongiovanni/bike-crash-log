@@ -6,12 +6,9 @@ export async function GET() {
   return NextResponse.json(logs);
 }
 
-const VALID_DISTANCES = ["under_2", "2_to_5", "5_to_10", "10_to_15", "15_plus"];
-const VALID_TIMES = ["under_15", "15_to_30", "30_to_45", "45_to_60", "60_plus"];
-
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { date, weather, safety, legs, soul, joys, sorrows, distance_estimate, time_estimate, rush_hour, time_of_day } = body;
+  const { date, weather, safety, legs, soul, joys, sorrows, distance_miles, duration_minutes, rush_hour, time_of_day } = body;
 
   if (!date || !date.match(/^\d{4}-\d{2}-\d{2}$/)) {
     return NextResponse.json({ error: "Valid date (YYYY-MM-DD) is required" }, { status: 400 });
@@ -24,12 +21,12 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (distance_estimate && !VALID_DISTANCES.includes(distance_estimate)) {
-    return NextResponse.json({ error: "Invalid distance estimate" }, { status: 400 });
+  if (distance_miles != null && (isNaN(Number(distance_miles)) || Number(distance_miles) < 0)) {
+    return NextResponse.json({ error: "Distance must be a positive number" }, { status: 400 });
   }
 
-  if (time_estimate && !VALID_TIMES.includes(time_estimate)) {
-    return NextResponse.json({ error: "Invalid time estimate" }, { status: 400 });
+  if (duration_minutes != null && (!Number.isInteger(Number(duration_minutes)) || Number(duration_minutes) < 0)) {
+    return NextResponse.json({ error: "Duration must be a positive whole number" }, { status: 400 });
   }
 
   if (time_of_day && !["am", "pm"].includes(time_of_day)) {
@@ -44,8 +41,8 @@ export async function POST(request: NextRequest) {
     soul: Number(soul),
     joys: joys || undefined,
     sorrows: sorrows || undefined,
-    distance_estimate: distance_estimate || undefined,
-    time_estimate: time_estimate || undefined,
+    distance_miles: distance_miles != null ? Number(distance_miles) : undefined,
+    duration_minutes: duration_minutes != null ? Number(duration_minutes) : undefined,
     rush_hour: !!rush_hour,
     time_of_day: time_of_day || undefined,
   });

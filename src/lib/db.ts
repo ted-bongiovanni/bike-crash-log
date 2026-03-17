@@ -54,8 +54,8 @@ function initSchema(db: Database.Database) {
       soul INTEGER NOT NULL CHECK(soul BETWEEN 1 AND 5),
       joys TEXT,
       sorrows TEXT,
-      distance_estimate TEXT CHECK(distance_estimate IN ('under_2', '2_to_5', '5_to_10', '10_to_15', '15_plus')),
-      time_estimate TEXT CHECK(time_estimate IN ('under_15', '15_to_30', '30_to_45', '45_to_60', '60_plus')),
+      distance_miles REAL,
+      duration_minutes INTEGER,
       rush_hour INTEGER DEFAULT 0,
       time_of_day TEXT CHECK(time_of_day IN ('am', 'pm'))
     );
@@ -68,11 +68,18 @@ function hasColumn(db: Database.Database, table: string, column: string): boolea
 }
 
 function runMigrations(db: Database.Database) {
-  if (!hasColumn(db, "commute_logs", "distance_estimate")) {
-    db.exec(`ALTER TABLE commute_logs ADD COLUMN distance_estimate TEXT CHECK(distance_estimate IN ('under_2', '2_to_5', '5_to_10', '10_to_15', '15_plus'))`);
+  if (!hasColumn(db, "commute_logs", "distance_miles")) {
+    // Migrate from old enum columns to numeric columns
+    if (hasColumn(db, "commute_logs", "distance_estimate")) {
+      db.exec(`ALTER TABLE commute_logs DROP COLUMN distance_estimate`);
+    }
+    db.exec(`ALTER TABLE commute_logs ADD COLUMN distance_miles REAL`);
   }
-  if (!hasColumn(db, "commute_logs", "time_estimate")) {
-    db.exec(`ALTER TABLE commute_logs ADD COLUMN time_estimate TEXT CHECK(time_estimate IN ('under_15', '15_to_30', '30_to_45', '45_to_60', '60_plus'))`);
+  if (!hasColumn(db, "commute_logs", "duration_minutes")) {
+    if (hasColumn(db, "commute_logs", "time_estimate")) {
+      db.exec(`ALTER TABLE commute_logs DROP COLUMN time_estimate`);
+    }
+    db.exec(`ALTER TABLE commute_logs ADD COLUMN duration_minutes INTEGER`);
   }
   if (!hasColumn(db, "commute_logs", "rush_hour")) {
     db.exec(`ALTER TABLE commute_logs ADD COLUMN rush_hour INTEGER DEFAULT 0`);
@@ -222,9 +229,6 @@ export function getPhotoCount(crashId: number): number {
 
 // --- Commute Log ---
 
-export type DistanceEstimate = "under_2" | "2_to_5" | "5_to_10" | "10_to_15" | "15_plus";
-export type TimeEstimate = "under_15" | "15_to_30" | "30_to_45" | "45_to_60" | "60_plus";
-
 export interface CommuteLog {
   id: number;
   created_at: string;
@@ -235,8 +239,8 @@ export interface CommuteLog {
   soul: number;
   joys: string | null;
   sorrows: string | null;
-  distance_estimate: DistanceEstimate | null;
-  time_estimate: TimeEstimate | null;
+  distance_miles: number | null;
+  duration_minutes: number | null;
   rush_hour: number;
   time_of_day: "am" | "pm" | null;
 }
@@ -254,15 +258,15 @@ export function insertCommuteLog(data: {
   soul: number;
   joys?: string;
   sorrows?: string;
-  distance_estimate?: string;
-  time_estimate?: string;
+  distance_miles?: number;
+  duration_minutes?: number;
   rush_hour?: boolean;
   time_of_day?: "am" | "pm";
 }): CommuteLog {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO commute_logs (date, weather, safety, legs, soul, joys, sorrows, distance_estimate, time_estimate, rush_hour, time_of_day)
-    VALUES (@date, @weather, @safety, @legs, @soul, @joys, @sorrows, @distance_estimate, @time_estimate, @rush_hour, @time_of_day)
+    INSERT INTO commute_logs (date, weather, safety, legs, soul, joys, sorrows, distance_miles, duration_minutes, rush_hour, time_of_day)
+    VALUES (@date, @weather, @safety, @legs, @soul, @joys, @sorrows, @distance_miles, @duration_minutes, @rush_hour, @time_of_day)
   `);
   const result = stmt.run({
     date: data.date,
@@ -272,8 +276,8 @@ export function insertCommuteLog(data: {
     soul: data.soul,
     joys: data.joys || null,
     sorrows: data.sorrows || null,
-    distance_estimate: data.distance_estimate || null,
-    time_estimate: data.time_estimate || null,
+    distance_miles: data.distance_miles ?? null,
+    duration_minutes: data.duration_minutes ?? null,
     rush_hour: data.rush_hour ? 1 : 0,
     time_of_day: data.time_of_day || null,
   });
