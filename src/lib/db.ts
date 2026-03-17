@@ -52,7 +52,10 @@ function initSchema(db: Database.Database) {
       legs INTEGER NOT NULL CHECK(legs BETWEEN 1 AND 5),
       soul INTEGER NOT NULL CHECK(soul BETWEEN 1 AND 5),
       joys TEXT,
-      sorrows TEXT
+      sorrows TEXT,
+      distance_estimate TEXT CHECK(distance_estimate IN ('under_2', '2_to_5', '5_to_10', '10_to_15', '15_plus')),
+      time_estimate TEXT CHECK(time_estimate IN ('under_15', '15_to_30', '30_to_45', '45_to_60', '60_plus')),
+      rush_hour INTEGER DEFAULT 0
     );
   `);
 }
@@ -197,6 +200,9 @@ export function getPhotoCount(crashId: number): number {
 
 // --- Commute Log ---
 
+export type DistanceEstimate = "under_2" | "2_to_5" | "5_to_10" | "10_to_15" | "15_plus";
+export type TimeEstimate = "under_15" | "15_to_30" | "30_to_45" | "45_to_60" | "60_plus";
+
 export interface CommuteLog {
   id: number;
   created_at: string;
@@ -207,6 +213,9 @@ export interface CommuteLog {
   soul: number;
   joys: string | null;
   sorrows: string | null;
+  distance_estimate: DistanceEstimate | null;
+  time_estimate: TimeEstimate | null;
+  rush_hour: number;
 }
 
 export function getAllCommuteLogs(): CommuteLog[] {
@@ -222,11 +231,14 @@ export function insertCommuteLog(data: {
   soul: number;
   joys?: string;
   sorrows?: string;
+  distance_estimate?: string;
+  time_estimate?: string;
+  rush_hour?: boolean;
 }): CommuteLog {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO commute_logs (date, weather, safety, legs, soul, joys, sorrows)
-    VALUES (@date, @weather, @safety, @legs, @soul, @joys, @sorrows)
+    INSERT INTO commute_logs (date, weather, safety, legs, soul, joys, sorrows, distance_estimate, time_estimate, rush_hour)
+    VALUES (@date, @weather, @safety, @legs, @soul, @joys, @sorrows, @distance_estimate, @time_estimate, @rush_hour)
   `);
   const result = stmt.run({
     date: data.date,
@@ -236,6 +248,9 @@ export function insertCommuteLog(data: {
     soul: data.soul,
     joys: data.joys || null,
     sorrows: data.sorrows || null,
+    distance_estimate: data.distance_estimate || null,
+    time_estimate: data.time_estimate || null,
+    rush_hour: data.rush_hour ? 1 : 0,
   });
   return db.prepare("SELECT * FROM commute_logs WHERE id = ?").get(result.lastInsertRowid) as CommuteLog;
 }
