@@ -20,6 +20,10 @@ interface CommuteStatsData {
     avg_legs: number;
     avg_soul: number;
   } | null;
+  totals: {
+    total_miles: number;
+    total_minutes: number;
+  };
   byWeek: {
     week: string;
     weather: number;
@@ -96,8 +100,14 @@ export default function CommuteStatsView() {
   return (
     <div className="space-y-8">
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <StatCard label="TOTAL RIDES" value={stats.total.toString()} color="text-mta-yellow" />
+        <StatCard label="TOTAL MILES" value={stats.totals.total_miles.toString()} color="text-mta-yellow" />
+        <StatCard
+          label="TOTAL MINUTES"
+          value={formatMinutes(stats.totals.total_minutes)}
+          color="text-mta-yellow"
+        />
         <StatCard label="AVG SCORE" value={overallAvg} color="text-mta-green" />
         <StatCard
           label="WORST AVG"
@@ -181,6 +191,13 @@ function StatCard({ label, value, color }: { label: string; value: string; color
       <div className={`text-2xl font-bold font-mono ${color}`}>{value}</div>
     </div>
   );
+}
+
+function formatMinutes(mins: number): string {
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
 function worstCategory(avg: { avg_weather: number; avg_safety: number; avg_legs: number; avg_soul: number }): string {

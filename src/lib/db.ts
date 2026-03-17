@@ -312,9 +312,16 @@ export function getCommuteStats() {
     FROM commute_logs GROUP BY week ORDER BY week
   `).all() as { week: string; weather: number; safety: number; legs: number; soul: number }[];
 
+  const totals = db.prepare(`
+    SELECT
+      ROUND(COALESCE(SUM(distance_miles), 0), 1) as total_miles,
+      COALESCE(SUM(duration_minutes), 0) as total_minutes
+    FROM commute_logs
+  `).get() as { total_miles: number; total_minutes: number };
+
   const recent = db.prepare(
     "SELECT * FROM commute_logs ORDER BY date DESC LIMIT 7"
   ).all() as CommuteLog[];
 
-  return { total, averages, byWeek, recent };
+  return { total, averages, byWeek, recent, totals };
 }
