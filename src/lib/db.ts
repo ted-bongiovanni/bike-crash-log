@@ -11,7 +11,16 @@ let db: Database.Database | null = null;
 export function getDb(): Database.Database {
   if (!db) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
-    console.log(`[db] Opening database at ${DB_PATH} (DATA_DIR=${DATA_DIR}, exists=${fs.existsSync(DATA_DIR)}, writable=${(() => { try { fs.accessSync(DATA_DIR, fs.constants.W_OK); return true; } catch { return false; } })()})`);
+    // Test that we can actually write to the data directory
+    const testFile = path.join(DATA_DIR, ".write-test");
+    try {
+      fs.writeFileSync(testFile, "ok");
+      fs.unlinkSync(testFile);
+      console.log(`[db] DATA_DIR=${DATA_DIR} is writable, opening ${DB_PATH}`);
+    } catch (err) {
+      console.error(`[db] DATA_DIR=${DATA_DIR} is NOT writable:`, err);
+      console.error(`[db] Dir exists: ${fs.existsSync(DATA_DIR)}, contents:`, (() => { try { return fs.readdirSync(DATA_DIR); } catch { return "unreadable"; } })());
+    }
     db = new Database(DB_PATH);
     db.pragma("journal_mode = WAL");
     db.pragma("foreign_keys = ON");
