@@ -29,10 +29,12 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-USER nextjs
+# Entrypoint script to fix volume permissions at runtime
+RUN printf '#!/bin/sh\nchown -R nextjs:nodejs /data 2>/dev/null || true\nexec su -s /bin/sh nextjs -c "node server.js"\n' > /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
 
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["/app/entrypoint.sh"]
