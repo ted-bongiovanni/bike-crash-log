@@ -123,7 +123,6 @@ export default function CommuteForm() {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            required
             className="w-full bg-surface border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-mta-yellow"
           />
         </div>
