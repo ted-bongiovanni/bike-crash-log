@@ -11,6 +11,7 @@ let db: Database.Database | null = null;
 export function getDb(): Database.Database {
   if (!db) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
+    console.log(`[db] Opening database at ${DB_PATH} (DATA_DIR=${DATA_DIR}, exists=${fs.existsSync(DATA_DIR)}, writable=${(() => { try { fs.accessSync(DATA_DIR, fs.constants.W_OK); return true; } catch { return false; } })()})`);
     db = new Database(DB_PATH);
     db.pragma("journal_mode = WAL");
     db.pragma("foreign_keys = ON");
