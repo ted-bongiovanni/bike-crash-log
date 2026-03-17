@@ -55,7 +55,8 @@ function initSchema(db: Database.Database) {
       sorrows TEXT,
       distance_estimate TEXT CHECK(distance_estimate IN ('under_2', '2_to_5', '5_to_10', '10_to_15', '15_plus')),
       time_estimate TEXT CHECK(time_estimate IN ('under_15', '15_to_30', '30_to_45', '45_to_60', '60_plus')),
-      rush_hour INTEGER DEFAULT 0
+      rush_hour INTEGER DEFAULT 0,
+      time_of_day TEXT CHECK(time_of_day IN ('am', 'pm'))
     );
   `);
 }
@@ -216,6 +217,7 @@ export interface CommuteLog {
   distance_estimate: DistanceEstimate | null;
   time_estimate: TimeEstimate | null;
   rush_hour: number;
+  time_of_day: "am" | "pm" | null;
 }
 
 export function getAllCommuteLogs(): CommuteLog[] {
@@ -234,11 +236,12 @@ export function insertCommuteLog(data: {
   distance_estimate?: string;
   time_estimate?: string;
   rush_hour?: boolean;
+  time_of_day?: "am" | "pm";
 }): CommuteLog {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO commute_logs (date, weather, safety, legs, soul, joys, sorrows, distance_estimate, time_estimate, rush_hour)
-    VALUES (@date, @weather, @safety, @legs, @soul, @joys, @sorrows, @distance_estimate, @time_estimate, @rush_hour)
+    INSERT INTO commute_logs (date, weather, safety, legs, soul, joys, sorrows, distance_estimate, time_estimate, rush_hour, time_of_day)
+    VALUES (@date, @weather, @safety, @legs, @soul, @joys, @sorrows, @distance_estimate, @time_estimate, @rush_hour, @time_of_day)
   `);
   const result = stmt.run({
     date: data.date,
@@ -251,6 +254,7 @@ export function insertCommuteLog(data: {
     distance_estimate: data.distance_estimate || null,
     time_estimate: data.time_estimate || null,
     rush_hour: data.rush_hour ? 1 : 0,
+    time_of_day: data.time_of_day || null,
   });
   return db.prepare("SELECT * FROM commute_logs WHERE id = ?").get(result.lastInsertRowid) as CommuteLog;
 }
