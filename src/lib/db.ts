@@ -289,6 +289,12 @@ export function insertCommuteLog(data: {
   return db.prepare("SELECT * FROM commute_logs WHERE id = ?").get(result.lastInsertRowid) as CommuteLog;
 }
 
+export function deleteCommuteLog(id: number): boolean {
+  const db = getDb();
+  const result = db.prepare("DELETE FROM commute_logs WHERE id = ?").run(id);
+  return result.changes > 0;
+}
+
 export function getCommuteStats() {
   const db = getDb();
 
