@@ -1,5 +1,20 @@
 import type Database from "better-sqlite3";
 
+const COMMUTE_SEED_DATA = [
+  { date: "2026-03-17", weather: 3, safety: 2, legs: 4, soul: 3, joys: "First warm-ish day. Saw a hawk on the Williamsburg Bridge.", sorrows: "Delivery truck parked in the bike lane on Grand. Again." },
+  { date: "2026-03-14", weather: 2, safety: 3, legs: 2, soul: 2, joys: "Nobody honked at me today. Low bar, but still.", sorrows: "Rain the entire way. Glasses fogged. Soul damp." },
+  { date: "2026-03-13", weather: 4, safety: 4, legs: 3, soul: 5, joys: "Perfect tailwind on the bridge. Coffee shop had my order ready. Life is good.", sorrows: null },
+  { date: "2026-03-12", weather: 1, safety: 2, legs: 3, soul: 1, joys: null, sorrows: "Sleet. Actual sleet in March. Cab cut me off on 2nd Ave. Existential dread." },
+  { date: "2026-03-11", weather: 3, safety: 3, legs: 4, soul: 4, joys: "Old guy on a fixie gave me a nod. Solidarity.", sorrows: "Construction detour added 10 minutes." },
+  { date: "2026-03-10", weather: 4, safety: 1, legs: 5, soul: 2, joys: "Legs felt incredible. Must be the new saddle.", sorrows: "Three near-misses in 20 minutes. Driver ran a red on Houston. Another on Delancey. Bike lane blocked on Allen." },
+  { date: "2026-03-07", weather: 5, safety: 4, legs: 3, soul: 5, joys: "Gorgeous morning. Sunrise over the East River. Sang out loud on the bridge.", sorrows: "Glass in the bike lane on Kent Ave. Per tradition." },
+  { date: "2026-03-06", weather: 2, safety: 3, legs: 2, soul: 3, joys: "Found a dollar on the ground at a red light.", sorrows: "Headwind both directions. How is that even possible." },
+  { date: "2026-03-05", weather: 3, safety: 4, legs: 4, soul: 4, joys: "Smooth ride. Green lights the whole way down 1st Ave.", sorrows: "Pedestrian yelled at me for existing in the bike lane." },
+  { date: "2026-03-04", weather: 4, safety: 2, legs: 3, soul: 2, joys: "Nice weather at least.", sorrows: "Door zone roulette on Smith St. Someone opened a door into the lane, missed me by inches." },
+  { date: "2026-03-03", weather: 1, safety: 3, legs: 1, soul: 1, joys: null, sorrows: "Cold rain. Forgot gloves. Hands numb by mile 2. Questioned every life choice." },
+  { date: "2026-02-28", weather: 3, safety: 5, legs: 4, soul: 5, joys: "Protected bike lane on the new stretch of Queens Blvd. Felt like cycling in Copenhagen. Also a dog ran alongside me for a block, very motivating.", sorrows: null },
+];
+
 const SEED_DATA = [
   { lat: 40.7580, lng: -73.9855, location_description: "7th Ave & W 47th St", description: "Car turned right without checking bike lane. Had to brake hard and went over handlebars.", severity: "moderate", crash_type: "vehicle", date_of_crash: "2026-02-15", reported_to_police: 0 },
   { lat: 40.7282, lng: -73.7949, location_description: "Union Turnpike & Queens Blvd", description: "Hit a deep pothole hidden by standing water. Front wheel buckled.", severity: "moderate", crash_type: "road_hazard", date_of_crash: "2026-02-10", reported_to_police: 0 },
@@ -32,5 +47,24 @@ export function seedDatabase(db: Database.Database) {
 
     insertAll();
     console.log(`Seeded ${SEED_DATA.length} crashes`);
+  }
+
+  // Seed commute logs
+  const commuteCount = (db.prepare("SELECT COUNT(*) as count FROM commute_logs").get() as { count: number }).count;
+
+  if (commuteCount === 0) {
+    const commuteStmt = db.prepare(`
+      INSERT INTO commute_logs (date, weather, safety, legs, soul, joys, sorrows)
+      VALUES (@date, @weather, @safety, @legs, @soul, @joys, @sorrows)
+    `);
+
+    const insertCommutes = db.transaction(() => {
+      for (const log of COMMUTE_SEED_DATA) {
+        commuteStmt.run(log);
+      }
+    });
+
+    insertCommutes();
+    console.log(`Seeded ${COMMUTE_SEED_DATA.length} commute logs`);
   }
 }

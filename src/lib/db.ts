@@ -42,6 +42,18 @@ function initSchema(db: Database.Database) {
       label TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS commute_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      date TEXT NOT NULL,
+      weather INTEGER NOT NULL CHECK(weather BETWEEN 1 AND 5),
+      safety INTEGER NOT NULL CHECK(safety BETWEEN 1 AND 5),
+      legs INTEGER NOT NULL CHECK(legs BETWEEN 1 AND 5),
+      soul INTEGER NOT NULL CHECK(soul BETWEEN 1 AND 5),
+      joys TEXT,
+      sorrows TEXT
+    );
   `);
 }
 
@@ -181,4 +193,79 @@ export function insertPhoto(crashId: number, filename: string, label?: string): 
 export function getPhotoCount(crashId: number): number {
   const db = getDb();
   return (db.prepare("SELECT COUNT(*) as count FROM crash_photos WHERE crash_id = ?").get(crashId) as { count: number }).count;
+}
+
+// --- Commute Log ---
+
+export interface CommuteLog {
+  id: number;
+  created_at: string;
+  date: string;
+  weather: number;
+  safety: number;
+  legs: number;
+  soul: number;
+  joys: string | null;
+  sorrows: string | null;
+}
+
+export function getAllCommuteLogs(): CommuteLog[] {
+  const db = getDb();
+  return db.prepare("SELECT * FROM commute_logs ORDER BY date DESC").all() as CommuteLog[];
+}
+
+export function insertCommuteLog(data: {
+  date: string;
+  weather: number;
+  safety: number;
+  legs: number;
+  soul: number;
+  joys?: string;
+  sorrows?: string;
+}): CommuteLog {
+  const db = getDb();
+  const stmt = db.prepare(`
+    INSERT INTO commute_logs (date, weather, safety, legs, soul, joys, sorrows)
+    VALUES (@date, @weather, @safety, @legs, @soul, @joys, @sorrows)
+  `);
+  const result = stmt.run({
+    date: data.date,
+    weather: data.weather,
+    safety: data.safety,
+    legs: data.legs,
+    soul: data.soul,
+    joys: data.joys || null,
+    sorrows: data.sorrows || null,
+  });
+  return db.prepare("SELECT * FROM commute_logs WHERE id = ?").get(result.lastInsertRowid) as CommuteLog;
+}
+
+export function getCommuteStats() {
+  const db = getDb();
+
+  const total = (db.prepare("SELECT COUNT(*) as count FROM commute_logs").get() as { count: number }).count;
+
+  const averages = db.prepare(`
+    SELECT
+      ROUND(AVG(weather), 1) as avg_weather,
+      ROUND(AVG(safety), 1) as avg_safety,
+      ROUND(AVG(legs), 1) as avg_legs,
+      ROUND(AVG(soul), 1) as avg_soul
+    FROM commute_logs
+  `).get() as { avg_weather: number; avg_safety: number; avg_legs: number; avg_soul: number } | undefined;
+
+  const byWeek = db.prepare(`
+    SELECT strftime('%Y-W%W', date) as week,
+      ROUND(AVG(weather), 1) as weather,
+      ROUND(AVG(safety), 1) as safety,
+      ROUND(AVG(legs), 1) as legs,
+      ROUND(AVG(soul), 1) as soul
+    FROM commute_logs GROUP BY week ORDER BY week
+  `).all() as { week: string; weather: number; safety: number; legs: number; soul: number }[];
+
+  const recent = db.prepare(
+    "SELECT * FROM commute_logs ORDER BY date DESC LIMIT 7"
+  ).all() as CommuteLog[];
+
+  return { total, averages, byWeek, recent };
 }
