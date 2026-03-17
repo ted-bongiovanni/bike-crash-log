@@ -33,19 +33,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "time_of_day must be 'am' or 'pm'" }, { status: 400 });
   }
 
-  const log = insertCommuteLog({
-    date,
-    weather: Number(weather),
-    safety: Number(safety),
-    legs: Number(legs),
-    soul: Number(soul),
-    joys: joys || undefined,
-    sorrows: sorrows || undefined,
-    distance_miles: distance_miles != null ? Number(distance_miles) : undefined,
-    duration_minutes: duration_minutes != null ? Number(duration_minutes) : undefined,
-    rush_hour: !!rush_hour,
-    time_of_day: time_of_day || undefined,
-  });
+  try {
+    const log = insertCommuteLog({
+      date,
+      weather: Number(weather),
+      safety: Number(safety),
+      legs: Number(legs),
+      soul: Number(soul),
+      joys: joys || undefined,
+      sorrows: sorrows || undefined,
+      distance_miles: distance_miles != null ? Number(distance_miles) : undefined,
+      duration_minutes: duration_minutes != null ? Number(duration_minutes) : undefined,
+      rush_hour: !!rush_hour,
+      time_of_day: time_of_day || undefined,
+    });
 
-  return NextResponse.json(log, { status: 201 });
+    return NextResponse.json(log, { status: 201 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to save commute";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

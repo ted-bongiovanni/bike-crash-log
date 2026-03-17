@@ -69,16 +69,9 @@ function hasColumn(db: Database.Database, table: string, column: string): boolea
 
 function runMigrations(db: Database.Database) {
   if (!hasColumn(db, "commute_logs", "distance_miles")) {
-    // Migrate from old enum columns to numeric columns
-    if (hasColumn(db, "commute_logs", "distance_estimate")) {
-      db.exec(`ALTER TABLE commute_logs DROP COLUMN distance_estimate`);
-    }
     db.exec(`ALTER TABLE commute_logs ADD COLUMN distance_miles REAL`);
   }
   if (!hasColumn(db, "commute_logs", "duration_minutes")) {
-    if (hasColumn(db, "commute_logs", "time_estimate")) {
-      db.exec(`ALTER TABLE commute_logs DROP COLUMN time_estimate`);
-    }
     db.exec(`ALTER TABLE commute_logs ADD COLUMN duration_minutes INTEGER`);
   }
   if (!hasColumn(db, "commute_logs", "rush_hour")) {
