@@ -56,6 +56,15 @@ function initSchema(db: Database.Database) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS bicycles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      power_type TEXT NOT NULL DEFAULT 'leg' CHECK(power_type IN ('leg', 'pedal_assist', 'throttle')),
+      description TEXT,
+      image_url TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS commute_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -91,6 +100,9 @@ function runMigrations(db: Database.Database) {
   }
   if (!hasColumn(db, "commute_logs", "time_of_day")) {
     db.exec(`ALTER TABLE commute_logs ADD COLUMN time_of_day TEXT CHECK(time_of_day IN ('am', 'pm'))`);
+  }
+  if (!hasColumn(db, "commute_logs", "bicycle_id")) {
+    db.exec(`ALTER TABLE commute_logs ADD COLUMN bicycle_id INTEGER REFERENCES bicycles(id)`);
   }
 }
 
@@ -232,6 +244,52 @@ export function getPhotoCount(crashId: number): number {
   return (db.prepare("SELECT COUNT(*) as count FROM crash_photos WHERE crash_id = ?").get(crashId) as { count: number }).count;
 }
 
+// --- Bicycles ---
+
+export interface Bicycle {
+  id: number;
+  name: string;
+  power_type: "leg" | "pedal_assist" | "throttle";
+  description: string | null;
+  image_url: string | null;
+  created_at: string;
+}
+
+export function getAllBicycles(): Bicycle[] {
+  const db = getDb();
+  return db.prepare("SELECT * FROM bicycles ORDER BY name").all() as Bicycle[];
+}
+
+export function insertBicycle(data: {
+  name: string;
+  power_type: "leg" | "pedal_assist" | "throttle";
+  description?: string;
+  image_url?: string;
+}): Bicycle {
+  const db = getDb();
+  const stmt = db.prepare(`
+    INSERT INTO bicycles (name, power_type, description, image_url)
+    VALUES (@name, @power_type, @description, @image_url)
+  `);
+  const result = stmt.run({
+    name: data.name,
+    power_type: data.power_type,
+    description: data.description || null,
+    image_url: data.image_url || null,
+  });
+  return db.prepare("SELECT * FROM bicycles WHERE id = ?").get(result.lastInsertRowid) as Bicycle;
+}
+
+export function deleteBicycle(id: number): { success: boolean; error?: string } {
+  const db = getDb();
+  const rideCount = (db.prepare("SELECT COUNT(*) as count FROM commute_logs WHERE bicycle_id = ?").get(id) as { count: number }).count;
+  if (rideCount > 0) {
+    return { success: false, error: `This bike has ${rideCount} ride${rideCount > 1 ? "s" : ""} logged. Remove rides first.` };
+  }
+  const result = db.prepare("DELETE FROM bicycles WHERE id = ?").run(id);
+  return { success: result.changes > 0 };
+}
+
 // --- Commute Log ---
 
 export interface CommuteLog {
@@ -248,11 +306,19 @@ export interface CommuteLog {
   duration_minutes: number | null;
   rush_hour: number;
   time_of_day: "am" | "pm" | null;
+  bicycle_id: number | null;
+  bicycle_name: string | null;
+  bicycle_power_type: string | null;
 }
 
 export function getAllCommuteLogs(): CommuteLog[] {
   const db = getDb();
-  return db.prepare("SELECT * FROM commute_logs ORDER BY date DESC").all() as CommuteLog[];
+  return db.prepare(`
+    SELECT cl.*, b.name as bicycle_name, b.power_type as bicycle_power_type
+    FROM commute_logs cl
+    LEFT JOIN bicycles b ON cl.bicycle_id = b.id
+    ORDER BY cl.date DESC
+  `).all() as CommuteLog[];
 }
 
 export function insertCommuteLog(data: {
@@ -267,11 +333,12 @@ export function insertCommuteLog(data: {
   duration_minutes?: number;
   rush_hour?: boolean;
   time_of_day?: "am" | "pm";
+  bicycle_id?: number;
 }): CommuteLog {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO commute_logs (date, weather, safety, legs, soul, joys, sorrows, distance_miles, duration_minutes, rush_hour, time_of_day)
-    VALUES (@date, @weather, @safety, @legs, @soul, @joys, @sorrows, @distance_miles, @duration_minutes, @rush_hour, @time_of_day)
+    INSERT INTO commute_logs (date, weather, safety, legs, soul, joys, sorrows, distance_miles, duration_minutes, rush_hour, time_of_day, bicycle_id)
+    VALUES (@date, @weather, @safety, @legs, @soul, @joys, @sorrows, @distance_miles, @duration_minutes, @rush_hour, @time_of_day, @bicycle_id)
   `);
   const result = stmt.run({
     date: data.date,
@@ -285,8 +352,14 @@ export function insertCommuteLog(data: {
     duration_minutes: data.duration_minutes ?? null,
     rush_hour: data.rush_hour ? 1 : 0,
     time_of_day: data.time_of_day || null,
+    bicycle_id: data.bicycle_id ?? null,
   });
-  return db.prepare("SELECT * FROM commute_logs WHERE id = ?").get(result.lastInsertRowid) as CommuteLog;
+  return db.prepare(`
+    SELECT cl.*, b.name as bicycle_name, b.power_type as bicycle_power_type
+    FROM commute_logs cl
+    LEFT JOIN bicycles b ON cl.bicycle_id = b.id
+    WHERE cl.id = ?
+  `).get(result.lastInsertRowid) as CommuteLog;
 }
 
 export function deleteCommuteLog(id: number): boolean {

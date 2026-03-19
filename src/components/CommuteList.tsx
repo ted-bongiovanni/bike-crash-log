@@ -14,6 +14,8 @@ interface CommuteLog {
   sorrows: string | null;
   distance_miles: number | null;
   duration_minutes: number | null;
+  bicycle_name: string | null;
+  bicycle_power_type: string | null;
 }
 
 function ScoreDot({ value }: { value: number }) {
@@ -115,6 +117,14 @@ export default function CommuteList() {
                 <div className={`text-xl font-bold font-mono ${moodColor}`}>{total}/20</div>
               </div>
             </div>
+
+            {log.bicycle_name && (
+              <div className="mb-3">
+                <span className="text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded bg-mta-yellow/20 text-mta-yellow">
+                  {log.bicycle_name}
+                </span>
+              </div>
+            )}
 
             <div className="flex gap-4 mb-3">
               {[

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const SCORE_LABELS: Record<number, string> = {
@@ -62,6 +62,12 @@ function ScoreSelector({
   );
 }
 
+interface Bike {
+  id: number;
+  name: string;
+  power_type: string;
+}
+
 export default function CommuteForm() {
   const router = useRouter();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -75,8 +81,17 @@ export default function CommuteForm() {
   const [timeEstimate, setTimeEstimate] = useState("");
   const [rushHour, setRushHour] = useState(false);
   const [timeOfDay, setTimeOfDay] = useState<"am" | "pm">(new Date().getHours() < 12 ? "am" : "pm");
+  const [bikes, setBikes] = useState<Bike[]>([]);
+  const [selectedBikeId, setSelectedBikeId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/bicycles")
+      .then((r) => r.json())
+      .then((data) => setBikes(data))
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,6 +108,7 @@ export default function CommuteForm() {
           duration_minutes: timeEstimate ? parseInt(timeEstimate, 10) : undefined,
           rush_hour: rushHour,
           time_of_day: timeOfDay,
+          bicycle_id: selectedBikeId ? parseInt(selectedBikeId, 10) : undefined,
         }),
       });
       if (!res.ok) {
@@ -156,6 +172,27 @@ export default function CommuteForm() {
           </div>
         </div>
       </div>
+
+      {/* Bike selector */}
+      {bikes.length > 0 && (
+        <div>
+          <label className="text-xs font-bold tracking-widest text-muted uppercase block mb-2">
+            BIKE
+          </label>
+          <select
+            value={selectedBikeId}
+            onChange={(e) => setSelectedBikeId(e.target.value)}
+            className="w-full bg-surface border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-mta-yellow appearance-none"
+          >
+            <option value="">— no bike selected —</option>
+            {bikes.map((bike) => (
+              <option key={bike.id} value={bike.id}>
+                {bike.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Scores */}
       <ScoreSelector label="WEATHER" hint="sky conditions" value={weather} onChange={setWeather} />
