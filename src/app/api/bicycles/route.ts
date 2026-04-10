@@ -8,7 +8,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { name, power_type, description, image_url } = body;
+  const { name, power_type, description, image_url, home_zip } = body;
 
   if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -20,11 +20,16 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (home_zip && !/^\d{5}$/.test(home_zip)) {
+      return NextResponse.json({ error: "Zip code must be 5 digits" }, { status: 400 });
+    }
+
     const bicycle = insertBicycle({
       name: name.trim(),
       power_type,
       description: description?.trim() || undefined,
       image_url: image_url?.trim() || undefined,
+      home_zip: home_zip?.trim() || undefined,
     });
     return NextResponse.json(bicycle, { status: 201 });
   } catch (err) {

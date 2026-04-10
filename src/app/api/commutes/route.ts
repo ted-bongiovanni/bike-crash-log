@@ -8,7 +8,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { date, weather, safety, legs, soul, notes, distance_miles, duration_minutes, rush_hour, time_of_day, bicycle_id } = body;
+  const { date, weather, safety, legs, soul, notes, distance_miles, duration_minutes, rush_hour, time_of_day, bicycle_id, temp_f, wind_mph, weather_condition, precip_in } = body;
 
   if (!date || !date.match(/^\d{4}-\d{2}-\d{2}$/)) {
     return NextResponse.json({ error: "Valid date (YYYY-MM-DD) is required" }, { status: 400 });
@@ -46,6 +46,10 @@ export async function POST(request: NextRequest) {
       rush_hour: !!rush_hour,
       time_of_day: time_of_day || undefined,
       bicycle_id: bicycle_id ? Number(bicycle_id) : undefined,
+      temp_f: temp_f != null ? Number(temp_f) : undefined,
+      wind_mph: wind_mph != null ? Number(wind_mph) : undefined,
+      weather_condition: weather_condition || undefined,
+      precip_in: precip_in != null ? Number(precip_in) : undefined,
     });
 
     return NextResponse.json(log, { status: 201 });

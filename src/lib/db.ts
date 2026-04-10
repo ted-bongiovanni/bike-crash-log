@@ -105,6 +105,10 @@ function runMigrations(db: Database.Database) {
     db.exec(`ALTER TABLE commute_logs ADD COLUMN bicycle_id INTEGER REFERENCES bicycles(id)`);
   }
 
+  if (!hasColumn(db, "bicycles", "home_zip")) {
+    db.exec(`ALTER TABLE bicycles ADD COLUMN home_zip TEXT`);
+  }
+
   // Migrate joys+sorrows → notes
   if (hasColumn(db, "commute_logs", "joys") && !hasColumn(db, "commute_logs", "notes")) {
     db.exec(`ALTER TABLE commute_logs ADD COLUMN notes TEXT`);
@@ -120,6 +124,20 @@ function runMigrations(db: Database.Database) {
   }
   if (!hasColumn(db, "commute_logs", "notes")) {
     db.exec(`ALTER TABLE commute_logs ADD COLUMN notes TEXT`);
+  }
+
+  // Weather data columns
+  if (!hasColumn(db, "commute_logs", "temp_f")) {
+    db.exec(`ALTER TABLE commute_logs ADD COLUMN temp_f REAL`);
+  }
+  if (!hasColumn(db, "commute_logs", "wind_mph")) {
+    db.exec(`ALTER TABLE commute_logs ADD COLUMN wind_mph REAL`);
+  }
+  if (!hasColumn(db, "commute_logs", "weather_condition")) {
+    db.exec(`ALTER TABLE commute_logs ADD COLUMN weather_condition TEXT`);
+  }
+  if (!hasColumn(db, "commute_logs", "precip_in")) {
+    db.exec(`ALTER TABLE commute_logs ADD COLUMN precip_in REAL`);
   }
 }
 
@@ -269,6 +287,7 @@ export interface Bicycle {
   power_type: "leg" | "pedal_assist" | "throttle";
   description: string | null;
   image_url: string | null;
+  home_zip: string | null;
   created_at: string;
 }
 
@@ -282,19 +301,45 @@ export function insertBicycle(data: {
   power_type: "leg" | "pedal_assist" | "throttle";
   description?: string;
   image_url?: string;
+  home_zip?: string;
 }): Bicycle {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO bicycles (name, power_type, description, image_url)
-    VALUES (@name, @power_type, @description, @image_url)
+    INSERT INTO bicycles (name, power_type, description, image_url, home_zip)
+    VALUES (@name, @power_type, @description, @image_url, @home_zip)
   `);
   const result = stmt.run({
     name: data.name,
     power_type: data.power_type,
     description: data.description || null,
     image_url: data.image_url || null,
+    home_zip: data.home_zip || null,
   });
   return db.prepare("SELECT * FROM bicycles WHERE id = ?").get(result.lastInsertRowid) as Bicycle;
+}
+
+export function updateBicycle(id: number, data: {
+  name: string;
+  power_type: "leg" | "pedal_assist" | "throttle";
+  description?: string;
+  image_url?: string;
+  home_zip?: string;
+}): Bicycle | null {
+  const db = getDb();
+  const stmt = db.prepare(`
+    UPDATE bicycles SET name = @name, power_type = @power_type, description = @description, image_url = @image_url, home_zip = @home_zip
+    WHERE id = @id
+  `);
+  const result = stmt.run({
+    id,
+    name: data.name,
+    power_type: data.power_type,
+    description: data.description || null,
+    image_url: data.image_url || null,
+    home_zip: data.home_zip || null,
+  });
+  if (result.changes === 0) return null;
+  return db.prepare("SELECT * FROM bicycles WHERE id = ?").get(id) as Bicycle;
 }
 
 export function deleteBicycle(id: number): { success: boolean; error?: string } {
@@ -325,6 +370,10 @@ export interface CommuteLog {
   bicycle_id: number | null;
   bicycle_name: string | null;
   bicycle_power_type: string | null;
+  temp_f: number | null;
+  wind_mph: number | null;
+  weather_condition: string | null;
+  precip_in: number | null;
 }
 
 export function getAllCommuteLogs(): CommuteLog[] {
@@ -349,11 +398,15 @@ export function insertCommuteLog(data: {
   rush_hour?: boolean;
   time_of_day?: "am" | "pm";
   bicycle_id?: number;
+  temp_f?: number;
+  wind_mph?: number;
+  weather_condition?: string;
+  precip_in?: number;
 }): CommuteLog {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO commute_logs (date, weather, safety, legs, soul, notes, distance_miles, duration_minutes, rush_hour, time_of_day, bicycle_id)
-    VALUES (@date, @weather, @safety, @legs, @soul, @notes, @distance_miles, @duration_minutes, @rush_hour, @time_of_day, @bicycle_id)
+    INSERT INTO commute_logs (date, weather, safety, legs, soul, notes, distance_miles, duration_minutes, rush_hour, time_of_day, bicycle_id, temp_f, wind_mph, weather_condition, precip_in)
+    VALUES (@date, @weather, @safety, @legs, @soul, @notes, @distance_miles, @duration_minutes, @rush_hour, @time_of_day, @bicycle_id, @temp_f, @wind_mph, @weather_condition, @precip_in)
   `);
   const result = stmt.run({
     date: data.date,
@@ -367,6 +420,10 @@ export function insertCommuteLog(data: {
     rush_hour: data.rush_hour ? 1 : 0,
     time_of_day: data.time_of_day || null,
     bicycle_id: data.bicycle_id ?? null,
+    temp_f: data.temp_f ?? null,
+    wind_mph: data.wind_mph ?? null,
+    weather_condition: data.weather_condition || null,
+    precip_in: data.precip_in ?? null,
   });
   return db.prepare(`
     SELECT cl.*, b.name as bicycle_name, b.power_type as bicycle_power_type

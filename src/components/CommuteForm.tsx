@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 const SCORE_LABELS: Record<number, string> = {
@@ -10,13 +10,6 @@ const SCORE_LABELS: Record<number, string> = {
   4: "GOOD",
   5: "GREAT",
 };
-
-const CATEGORIES = [
-  { key: "weather", label: "WEATHER", emoji: "sky" },
-  { key: "safety", label: "SAFETY", emoji: "shield" },
-  { key: "legs", label: "LEGS", emoji: "power" },
-  { key: "soul", label: "SOUL", emoji: "vibe" },
-] as const;
 
 function ScoreSelector({
   label,
@@ -66,6 +59,15 @@ interface Bike {
   id: number;
   name: string;
   power_type: string;
+  home_zip: string | null;
+}
+
+interface WeatherData {
+  temp_f: number;
+  wind_mph: number;
+  precip_in: number;
+  condition: string;
+  suggested_score: number;
 }
 
 export default function CommuteForm() {
@@ -85,12 +87,48 @@ export default function CommuteForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  // Weather state
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherApplied, setWeatherApplied] = useState(false);
+
   useEffect(() => {
     fetch("/api/bicycles")
       .then((r) => r.json())
       .then((data) => setBikes(data))
       .catch(() => {});
   }, []);
+
+  // Fetch weather when bike, date, or time of day changes
+  const fetchWeather = useCallback(async (zip: string, d: string, tod: string) => {
+    setWeatherLoading(true);
+    setWeatherData(null);
+    try {
+      const res = await fetch(`/api/weather?zip=${zip}&date=${d}&time_of_day=${tod}`);
+      if (res.ok) {
+        const data = await res.json();
+        setWeatherData(data);
+        // Auto-suggest score only if user hasn't manually changed it
+        if (!weatherApplied) {
+          setWeather(data.suggested_score);
+          setWeatherApplied(true);
+        }
+      }
+    } catch {
+      // Weather fetch is best-effort
+    } finally {
+      setWeatherLoading(false);
+    }
+  }, [weatherApplied]);
+
+  useEffect(() => {
+    const bike = bikes.find((b) => b.id === Number(selectedBikeId));
+    if (bike?.home_zip) {
+      fetchWeather(bike.home_zip, date, timeOfDay);
+    } else {
+      setWeatherData(null);
+    }
+  }, [selectedBikeId, date, timeOfDay, bikes, fetchWeather]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,6 +146,10 @@ export default function CommuteForm() {
           rush_hour: rushHour,
           time_of_day: timeOfDay,
           bicycle_id: selectedBikeId ? parseInt(selectedBikeId, 10) : undefined,
+          temp_f: weatherData?.temp_f,
+          wind_mph: weatherData?.wind_mph,
+          weather_condition: weatherData?.condition,
+          precip_in: weatherData?.precip_in,
         }),
       });
       if (!res.ok) {
@@ -137,7 +179,7 @@ export default function CommuteForm() {
           <input
             type="date"
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e) => { setDate(e.target.value); setWeatherApplied(false); }}
             className="w-full bg-surface border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-mta-yellow"
           />
         </div>
@@ -148,7 +190,7 @@ export default function CommuteForm() {
           <div className="flex rounded overflow-hidden border border-border">
             <button
               type="button"
-              onClick={() => setTimeOfDay("am")}
+              onClick={() => { setTimeOfDay("am"); setWeatherApplied(false); }}
               className={`px-4 py-2 text-sm font-bold tracking-widest transition-all ${
                 timeOfDay === "am"
                   ? "bg-mta-yellow text-background"
@@ -159,7 +201,7 @@ export default function CommuteForm() {
             </button>
             <button
               type="button"
-              onClick={() => setTimeOfDay("pm")}
+              onClick={() => { setTimeOfDay("pm"); setWeatherApplied(false); }}
               className={`px-4 py-2 text-sm font-bold tracking-widest transition-all ${
                 timeOfDay === "pm"
                   ? "bg-mta-yellow text-background"
@@ -180,7 +222,7 @@ export default function CommuteForm() {
           </label>
           <select
             value={selectedBikeId}
-            onChange={(e) => setSelectedBikeId(e.target.value)}
+            onChange={(e) => { setSelectedBikeId(e.target.value); setWeatherApplied(false); }}
             className="w-full bg-surface border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-mta-yellow appearance-none"
           >
             <option value="">— no bike selected —</option>
@@ -193,8 +235,32 @@ export default function CommuteForm() {
         </div>
       )}
 
+      {/* Weather banner */}
+      {weatherLoading && (
+        <div className="bg-surface border border-border rounded p-3 text-center">
+          <span className="text-xs tracking-widest text-muted uppercase">Fetching weather...</span>
+        </div>
+      )}
+      {weatherData && !weatherLoading && (
+        <div className="bg-surface border border-mta-blue/30 rounded p-3">
+          <div className="text-[10px] tracking-widest text-mta-blue uppercase mb-2 font-bold">ACTUAL WEATHER</div>
+          <div className="flex items-center justify-between">
+            <div className="flex gap-4 text-sm">
+              <span className="font-bold text-foreground">{weatherData.temp_f}°F</span>
+              <span className="text-muted">{weatherData.condition}</span>
+            </div>
+            <div className="flex gap-3 text-xs text-muted">
+              <span>Wind {weatherData.wind_mph} mph</span>
+              {weatherData.precip_in > 0 && (
+                <span>Precip {weatherData.precip_in}&quot;</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Scores */}
-      <ScoreSelector label="WEATHER" hint="sky conditions" value={weather} onChange={setWeather} />
+      <ScoreSelector label="WEATHER" hint={weatherData ? `suggested: ${weatherData.suggested_score}` : "sky conditions"} value={weather} onChange={setWeather} />
       <ScoreSelector label="SAFETY" hint="how threatened did you feel" value={safety} onChange={setSafety} />
       <ScoreSelector label="LEGS" hint="physical power" value={legs} onChange={setLegs} />
       <ScoreSelector label="SOUL" hint="mental state" value={soul} onChange={setSoul} />

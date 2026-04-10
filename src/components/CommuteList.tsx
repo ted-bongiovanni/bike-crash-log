@@ -15,6 +15,10 @@ interface CommuteLog {
   duration_minutes: number | null;
   bicycle_name: string | null;
   bicycle_power_type: string | null;
+  temp_f: number | null;
+  wind_mph: number | null;
+  weather_condition: string | null;
+  precip_in: number | null;
 }
 
 function ScoreDot({ value }: { value: number }) {
@@ -138,6 +142,15 @@ export default function CommuteList() {
                 </div>
               ))}
             </div>
+
+            {log.temp_f != null && (
+              <div className="flex gap-3 mb-3 text-xs text-muted">
+                <span className="font-bold text-mta-blue">{log.temp_f}°F</span>
+                <span>{log.weather_condition}</span>
+                {log.wind_mph != null && <span>Wind {log.wind_mph} mph</span>}
+                {log.precip_in != null && log.precip_in > 0 && <span>Precip {log.precip_in}&quot;</span>}
+              </div>
+            )}
 
             {(log.distance_miles || log.duration_minutes) && (
               <div className="flex gap-4 mb-3 text-xs text-muted">
