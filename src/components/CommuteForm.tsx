@@ -75,8 +75,7 @@ export default function CommuteForm() {
   const [safety, setSafety] = useState(3);
   const [legs, setLegs] = useState(3);
   const [soul, setSoul] = useState(3);
-  const [joys, setJoys] = useState("");
-  const [sorrows, setSorrows] = useState("");
+  const [notes, setNotes] = useState("");
   const [distanceEstimate, setDistanceEstimate] = useState("");
   const [timeEstimate, setTimeEstimate] = useState("");
   const [rushHour, setRushHour] = useState(false);
@@ -103,7 +102,7 @@ export default function CommuteForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          date, weather, safety, legs, soul, joys, sorrows,
+          date, weather, safety, legs, soul, notes,
           distance_miles: distanceEstimate ? parseFloat(distanceEstimate) : undefined,
           duration_minutes: timeEstimate ? parseInt(timeEstimate, 10) : undefined,
           rush_hour: rushHour,
@@ -251,31 +250,17 @@ export default function CommuteForm() {
         </button>
       </div>
 
-      {/* Joys */}
+      {/* Notes */}
       <div>
         <label className="text-xs font-bold tracking-widest text-muted uppercase block mb-2">
-          JOYS — <span className="text-mta-green">good things noticed</span>
+          NOTES — <span className="text-mta-yellow">joys, grievances, whatever</span>
         </label>
         <textarea
-          value={joys}
-          onChange={(e) => setJoys(e.target.value)}
-          placeholder="Tailwind on the bridge. Coffee was hot. That one driver who actually yielded..."
-          rows={3}
-          className="w-full bg-surface border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mta-green placeholder:text-muted/50 resize-none"
-        />
-      </div>
-
-      {/* Sorrows */}
-      <div>
-        <label className="text-xs font-bold tracking-widest text-muted uppercase block mb-2">
-          SORROWS — <span className="text-severity-severe">grievances filed</span>
-        </label>
-        <textarea
-          value={sorrows}
-          onChange={(e) => setSorrows(e.target.value)}
-          placeholder="Headwind the entire way. Glass in the bike lane again. Car parked in the bike lane on 2nd Ave. That one intersection..."
-          rows={3}
-          className="w-full bg-surface border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-severity-severe placeholder:text-muted/50 resize-none"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Tailwind on the bridge. Coffee was hot. Glass in the bike lane again. That one intersection..."
+          rows={4}
+          className="w-full bg-surface border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mta-yellow placeholder:text-muted/50 resize-none"
         />
       </div>
 

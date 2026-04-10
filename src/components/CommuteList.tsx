@@ -10,8 +10,7 @@ interface CommuteLog {
   safety: number;
   legs: number;
   soul: number;
-  joys: string | null;
-  sorrows: string | null;
+  notes: string | null;
   distance_miles: number | null;
   duration_minutes: number | null;
   bicycle_name: string | null;
@@ -151,20 +150,9 @@ export default function CommuteList() {
               </div>
             )}
 
-            {(log.joys || log.sorrows) && (
-              <div className="border-t border-border pt-3 space-y-2">
-                {log.joys && (
-                  <div className="text-xs">
-                    <span className="text-mta-green font-bold tracking-wider">+</span>{" "}
-                    <span className="text-muted">{log.joys}</span>
-                  </div>
-                )}
-                {log.sorrows && (
-                  <div className="text-xs">
-                    <span className="text-severity-severe font-bold tracking-wider">&minus;</span>{" "}
-                    <span className="text-muted">{log.sorrows}</span>
-                  </div>
-                )}
+            {log.notes && (
+              <div className="border-t border-border pt-3">
+                <div className="text-xs text-muted whitespace-pre-line">{log.notes}</div>
               </div>
             )}
           </div>

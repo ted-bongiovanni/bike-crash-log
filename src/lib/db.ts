@@ -104,6 +104,23 @@ function runMigrations(db: Database.Database) {
   if (!hasColumn(db, "commute_logs", "bicycle_id")) {
     db.exec(`ALTER TABLE commute_logs ADD COLUMN bicycle_id INTEGER REFERENCES bicycles(id)`);
   }
+
+  // Migrate joys+sorrows → notes
+  if (hasColumn(db, "commute_logs", "joys") && !hasColumn(db, "commute_logs", "notes")) {
+    db.exec(`ALTER TABLE commute_logs ADD COLUMN notes TEXT`);
+    // Concatenate existing joys/sorrows into notes
+    const rows = db.prepare(`SELECT id, joys, sorrows FROM commute_logs WHERE joys IS NOT NULL OR sorrows IS NOT NULL`).all() as { id: number; joys: string | null; sorrows: string | null }[];
+    const update = db.prepare(`UPDATE commute_logs SET notes = ? WHERE id = ?`);
+    for (const row of rows) {
+      const parts: string[] = [];
+      if (row.joys) parts.push(`Joys: ${row.joys}`);
+      if (row.sorrows) parts.push(`Sorrows: ${row.sorrows}`);
+      update.run(parts.join("\n"), row.id);
+    }
+  }
+  if (!hasColumn(db, "commute_logs", "notes")) {
+    db.exec(`ALTER TABLE commute_logs ADD COLUMN notes TEXT`);
+  }
 }
 
 export interface CrashPhoto {
@@ -300,8 +317,7 @@ export interface CommuteLog {
   safety: number;
   legs: number;
   soul: number;
-  joys: string | null;
-  sorrows: string | null;
+  notes: string | null;
   distance_miles: number | null;
   duration_minutes: number | null;
   rush_hour: number;
@@ -327,8 +343,7 @@ export function insertCommuteLog(data: {
   safety: number;
   legs: number;
   soul: number;
-  joys?: string;
-  sorrows?: string;
+  notes?: string;
   distance_miles?: number;
   duration_minutes?: number;
   rush_hour?: boolean;
@@ -337,8 +352,8 @@ export function insertCommuteLog(data: {
 }): CommuteLog {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO commute_logs (date, weather, safety, legs, soul, joys, sorrows, distance_miles, duration_minutes, rush_hour, time_of_day, bicycle_id)
-    VALUES (@date, @weather, @safety, @legs, @soul, @joys, @sorrows, @distance_miles, @duration_minutes, @rush_hour, @time_of_day, @bicycle_id)
+    INSERT INTO commute_logs (date, weather, safety, legs, soul, notes, distance_miles, duration_minutes, rush_hour, time_of_day, bicycle_id)
+    VALUES (@date, @weather, @safety, @legs, @soul, @notes, @distance_miles, @duration_minutes, @rush_hour, @time_of_day, @bicycle_id)
   `);
   const result = stmt.run({
     date: data.date,
@@ -346,8 +361,7 @@ export function insertCommuteLog(data: {
     safety: data.safety,
     legs: data.legs,
     soul: data.soul,
-    joys: data.joys || null,
-    sorrows: data.sorrows || null,
+    notes: data.notes || null,
     distance_miles: data.distance_miles ?? null,
     duration_minutes: data.duration_minutes ?? null,
     rush_hour: data.rush_hour ? 1 : 0,

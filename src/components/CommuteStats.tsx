@@ -38,8 +38,7 @@ interface CommuteStatsData {
     safety: number;
     legs: number;
     soul: number;
-    joys: string | null;
-    sorrows: string | null;
+    notes: string | null;
   }[];
 }
 
